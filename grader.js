@@ -70,17 +70,63 @@ var clone = function(fn) {
 var urlFmt = function(turl) {
   return util.format(turl);
   };
+
+var checkAndWrite = function(tfile, outfile, checkfile) {
+    var checkJson = checkHtmlFile(tfile, checkfile);
+    var outJson = JSON.stringify(checkJson, null, 4);
+    //console.log("outJson is:");
+    //console.log(outJson);
+    fs.writeFile(fname, outJson, function(err) {
+      if(err) {
+        console.log(err);
+        } else {
+        console.log("The file was saved!");
+        }
+    } )
+    }
+ 
+var doUrl = function(turl) {   
+     //console.log("got url "+ program.url);
+     //console.log("call rest");
+     rest.get(turl).on('complete',
+          urlFunc )
+     //console.log("back from rest");  
+     // html data in urlOutput
+     checkAndWrite("urlOutput", "outJson", program.checks)   
+}   
+
+var urlFunc = function(tdata) {
+    if (tdata instanceof Error) {
+      //console.log(urlFmt(program.url));
+      //console.log("Error:  " + tdata.message);
+      this.retry(5000);
+      } else {
+      //console.log(tdata);
+      write2File(tdata,"urlOutput");
+      }
+      }
+
   
-var write2File = function(result,response) {
-  if (results instanceof Error) {
-   console.error('Error:  ' + util.format(response.message))
+var doFile = function(tfile) {
+    //console.log(tfile);
+    //console.log(program.checks);
+    //console.log(program.u);
+    //console.log(program.url+"<==");
+    checkAndWrite(program.file, fname, program.checks);
+    }
+
+   
+    
+var write2File = function(tdata,tfile) {
+  if (tdata instanceof Error) {
+   console.error('Error:  ' + util.format(tdata.message))
   } else {
-   fs.writeFileSync(fname, ehaders);
+   fs.writeFileSync(tfile, tdata);
    }
 }
-var url2File = function(turl, fname) {
-    rest.get(turl).on('complete', write2File);
-    }
+//var url2File = function(turl, fname) {
+//    rest.get(turl).on('complete', write2File);
+//    }
 
 if(require.main == module) {
     program
@@ -88,26 +134,15 @@ if(require.main == module) {
             clone(assertFileExists), CHECKSFILE_DEFAULT)
         .option('-f, --file <html_file>', 'Path to index.html', 
             clone(assertFileExists), HTMLFILE_DEFAULT)
-        .option('-u, --url <URL>', 'URL', clone(assertFileExists),
-            URL_DEFAULT)
+        .option('-u, --url URL <URL>', 'URL')
         .parse(process.argv);
-    console.log("start");    
-    if (program.url) {
-          console.log("got url "+ program.url);
-          File2Check = program.url;
+        
+    if (String(program.url)=="undefined") {
+        //console.log("No url input");
+        doFile(program.file);    
     } else {
-          console.log("No url input");
-          File2Check = rest.get(urlFmt(url)).on('complete', write2File(result,response));
-    }      
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
-    fs.writeFile(fname, outJson, function(err) {
-    if(err) {
-        console.log(err);
-    } else {
-        console.log("The file was saved!");
+        doUrl(program.url);
     }
-}); 
-    exports.checkHtmlFile = checkHtmlFile;
-}
+    }
+         
+        
